@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Knowledge Assistant — AWS Architecture</title>
+<style>
+  :root{
+    --bg:#0d1b2a;
+    --panel:#ffffff;
+    --ink:#1b2530;
+    --ink-soft:#5b6672;
+    --line:#c7ccd1;
+
+    --compute:#ED7100;    --compute-bg:#FFF3E6;   --compute-bd:#F2A65A;
+    --ai:#7C3FE4;         --ai-bg:#F2ECFC;        --ai-bd:#B79AEE;
+    --storage:#0B7A3D;    --storage-bg:#E7F5EC;   --storage-bd:#8CC9A4;
+    --security:#C0143C;   --security-bg:#FCEAEE;  --security-bd:#E38FA1;
+    --network:#232F3E;    --network-bg:#F4F6F8;   --network-bd:#9AA5B1;
+    --observ:#0E7C86;     --observ-bg:#E6F5F6;    --observ-bd:#8FC9CD;
+    --cicd:#1857C4;       --cicd-bg:#EAF1FD;      --cicd-bd:#9CBBF0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:32px 16px; background:#eef1f4;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+  }
+  .canvas{max-width:1400px;margin:0 auto;background:#fff;border-radius:10px;padding:28px 32px 36px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+
+  .titlebar{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:22px;flex-wrap:wrap;gap:10px;}
+  .titlebar h1{font-size:21px;margin:0;font-weight:700;}
+  .titlebar .meta{font-size:12.5px;color:var(--ink-soft);}
+  .titlebar .meta b{color:var(--ink);}
+
+  .row{display:flex;gap:18px;align-items:stretch;margin-bottom:18px;}
+  .col{display:flex;flex-direction:column;gap:18px;}
+
+  .box{border-radius:8px;border:1.5px solid var(--line);background:#fff;padding:12px 14px;}
+  .box h2{font-size:13px;margin:0 0 8px;font-weight:700;display:flex;align-items:center;gap:7px;}
+  .box h2 .dot{width:9px;height:9px;border-radius:2px;flex:0 0 auto;}
+  .box .sub{font-size:11px;color:var(--ink-soft);margin:-6px 0 8px;}
+  .box .id{font-size:10.5px;color:var(--ink-soft);font-family:ui-monospace,Menlo,Consolas,monospace;margin:-4px 0 8px;}
+
+  .item{border-radius:6px;border:1px solid var(--line);background:#fafbfc;padding:7px 9px;font-size:11.5px;margin-bottom:6px;}
+  .item:last-child{margin-bottom:0;}
+  .item b{display:block;font-size:12px;margin-bottom:1px;}
+  .item span{color:var(--ink-soft);font-size:10.5px;}
+
+  .item-row{display:flex;gap:8px;}
+  .item-row .item{flex:1;}
+
+  .compute .item{background:var(--compute-bg);border-color:var(--compute-bd);}
+  .ai .item{background:var(--ai-bg);border-color:var(--ai-bd);}
+  .storage .item{background:var(--storage-bg);border-color:var(--storage-bd);}
+  .security .item{background:var(--security-bg);border-color:var(--security-bd);}
+  .observ .item{background:var(--observ-bg);border-color:var(--observ-bd);}
+  .cicd .item{background:var(--cicd-bg);border-color:var(--cicd-bd);}
+
+  .dot.compute-c{background:var(--compute);}
+  .dot.ai-c{background:var(--ai);}
+  .dot.storage-c{background:var(--storage);}
+  .dot.security-c{background:var(--security);}
+  .dot.observ-c{background:var(--observ);}
+  .dot.cicd-c{background:var(--cicd);}
+  .dot.network-c{background:var(--network);}
+
+  .vpc{border:2px dashed var(--network-bd);border-radius:10px;background:var(--network-bg);padding:14px 16px;flex:1;}
+  .vpc-label{font-size:12.5px;font-weight:700;margin-bottom:2px;}
+  .vpc-sub{font-size:10.5px;color:var(--ink-soft);margin-bottom:12px;}
+  .subnet{border:1.5px dashed var(--network-bd);border-radius:8px;padding:10px 12px;background:#ffffffb0;margin-bottom:10px;}
+  .subnet:last-child{margin-bottom:0;}
+  .subnet-label{font-size:11px;font-weight:700;color:var(--network);margin-bottom:6px;}
+
+  .flow{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;color:var(--ink-soft);font-size:10.5px;min-width:54px;}
+  .flow .arrow{font-size:18px;line-height:1;color:var(--ink-soft);}
+
+  .top-actor{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-width:96px;}
+  .top-actor .icon{width:40px;height:40px;border-radius:50%;background:var(--network-bg);border:1.5px solid var(--network-bd);display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .top-actor .lbl{font-size:11px;font-weight:600;text-align:center;}
+  .top-actor .sub2{font-size:9.5px;color:var(--ink-soft);text-align:center;}
+
+  .legend{display:flex;flex-wrap:wrap;gap:22px;border-top:1.5px solid var(--line);margin-top:6px;padding-top:14px;font-size:11px;}
+  .legend .lg-item{display:flex;align-items:center;gap:7px;}
+  .legend .sw{width:11px;height:11px;border-radius:3px;}
+
+  .bedrock-outer{border:1.5px solid var(--ai-bd);border-radius:10px;background:#fbf9fe;padding:12px 14px;flex:1.4;}
+  .bedrock-outer > .hdr{font-size:13px;font-weight:700;color:var(--ai);margin-bottom:10px;display:flex;align-items:center;gap:7px;}
+  .bedrock-inner-row{display:flex;gap:12px;}
+  .bedrock-inner-row .box{flex:1;}
+
+  .gw-fn{font-size:10px;color:var(--ink-soft);border-left:2px solid var(--ai-bd);padding-left:7px;margin-bottom:4px;}
+  .gw-fn:last-child{margin-bottom:0;}
+</style>
+</head>
+<body>
+<div class="canvas">
+
+  <div class="titlebar">
+    <div>
+      <h1>knowledge-assistant — AWS architecture</h1>
+    </div>
+    <div class="meta">Region: <b>us-east-1</b> &nbsp;|&nbsp; Account: <b>674959318309</b> &nbsp;|&nbsp; Environment: <b>dev</b></div>
+  </div>
+
+  <!-- TOP ROW: Users -> EC2 App -> AI Gateway -->
+  <div class="row" style="align-items:center;">
+    <div class="top-actor">
+      <div class="icon">&#128100;</div>
+      <div class="lbl">Employees</div>
+      <div class="sub2">Web browser</div>
+    </div>
+
+    <div class="flow"><span class="arrow">&#8594;</span><span>HTTPS</span></div>
+
+    <div class="box compute" style="flex:1;">
+      <h2><span class="dot compute-c"></span>Streamlit application</h2>
+      <div class="sub">Chat UI — text, voice &amp; image input</div>
+      <div class="item-row">
+        <div class="item"><b>Amazon EC2</b><span>t3.small · port 8501</span></div>
+        <div class="item"><b>SQLite</b><span>conversations.db — chat history</span></div>
+      </div>
+    </div>
+
+    <div class="flow"><span class="arrow">&#8594;</span><span>query</span></div>
+
+    <div class="box ai" style="flex:1.1;">
+      <h2><span class="dot ai-c"></span>AI Gateway</h2>
+      <div class="sub">gateway/router.py</div>
+      <div class="gw-fn">1. Guardrail check on input (PII / injection)</div>
+      <div class="gw-fn">2. Route: image → Vision, user pick → chosen model, else → complexity score</div>
+      <div class="gw-fn">3. Retrieve context + generate via Bedrock</div>
+      <div class="gw-fn">4. Guardrail check on output → return answer + citations</div>
+    </div>
+  </div>
+
+  <!-- SECOND ROW: VPC (EC2 host) + Bedrock stack -->
+  <div class="row">
+    <div class="vpc" style="flex:0.9;">
+      <div class="vpc-label">VPC — knowledge-assistant-vpc</div>
+      <div class="vpc-sub">Public subnet · us-east-1a</div>
+      <div class="subnet">
+        <div class="subnet-label">Public subnet (10.0.1.0/24)</div>
+        <div class="item-row">
+          <div class="item" style="background:var(--compute-bg);border-color:var(--compute-bd);"><b>EC2 instance</b><span>Streamlit host</span></div>
+        </div>
+      </div>
+      <div class="subnet">
+        <div class="subnet-label">Attached</div>
+        <div class="item-row">
+          <div class="item"><b>Internet Gateway</b><span>Inbound HTTPS</span></div>
+          <div class="item"><b>Security group</b><span>22 / 8501 only</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bedrock-outer">
+      <div class="hdr"><span class="dot ai-c"></span>Amazon Bedrock</div>
+      <div class="bedrock-inner-row">
+        <div class="box ai">
+          <h2>Knowledge base</h2>
+          <div class="id">ID: G9OGIPXGUY</div>
+          <div class="item"><b>Data source</b><span>S3 — hr_policy, product_manual, technical_guide</span></div>
+          <div class="item"><b>Embeddings</b><span>Amazon Titan v2 (1024-dim)</span></div>
+          <div class="item"><b>Vector index</b><span>OpenSearch Serverless</span></div>
+        </div>
+        <div class="box ai">
+          <h2>Guardrails</h2>
+          <div class="id">ID: s117fh098t2v · v1</div>
+          <div class="item"><b>PII detection</b><span>Email, phone → masked</span></div>
+          <div class="item"><b>Prompt-injection protection</b><span>Jailbreak attempts blocked</span></div>
+        </div>
+        <div class="box ai">
+          <h2>Foundation models</h2>
+          <div class="sub">Selected by AI Gateway</div>
+          <div class="item"><b>Amazon Nova Pro</b><span>Complex queries, vision</span></div>
+          <div class="item"><b>Amazon Nova Lite</b><span>Simple / fast queries</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THIRD ROW: EKS + Storage + Security + Observability -->
+  <div class="row">
+    <div class="box compute" style="flex:1;">
+      <h2><span class="dot compute-c"></span>Amazon EKS cluster</h2>
+      <div class="sub">Bonus — self-hosted open-source LLM</div>
+      <div class="item"><b>TinyLlama pod</b><span>Hugging Face model, self-hosted inference</span></div>
+      <div class="item"><b>LoadBalancer service</b><span>Exposed via ELB endpoint to AI Gateway</span></div>
+    </div>
+
+    <div class="box storage" style="flex:0.8;">
+      <h2><span class="dot storage-c"></span>Amazon S3</h2>
+      <div class="item"><b>Documents bucket</b><span>knowledge-assistant-docs-...</span></div>
+      <div class="item"><b>Terraform state bucket</b><span>Remote state, versioned</span></div>
+    </div>
+
+    <div class="box security" style="flex:0.8;">
+      <h2><span class="dot security-c"></span>Security</h2>
+      <div class="item"><b>IAM roles</b><span>KB role, EC2 instance profile</span></div>
+      <div class="item"><b>Security groups</b><span>Least-privilege ingress</span></div>
+    </div>
+
+    <div class="box observ" style="flex:0.9;">
+      <h2><span class="dot observ-c"></span>Observability</h2>
+      <div class="item"><b>LangFuse</b><span>Traces, latency, token usage</span></div>
+      <div class="item"><b>Analytics page</b><span>In-app token / cost charts</span></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM ROW: CI/CD -->
+  <div class="row" style="margin-bottom:6px;">
+    <div class="box cicd" style="flex:1;">
+      <h2><span class="dot cicd-c"></span>CI/CD pipeline — GitHub + AWS CodePipeline <span style="font-weight:400;color:var(--ink-soft);font-size:10.5px;">(theory)</span></h2>
+      <div class="item-row">
+        <div class="item"><b>GitHub</b><span>Source — push to main</span></div>
+        <div class="item"><b>CodeBuild</b><span>buildspec.yaml — install, pytest, package</span></div>
+        <div class="item"><b>CodePipeline</b><span>Orchestrates stages</span></div>
+        <div class="item"><b>Deploy</b><span>Update EC2 / container image</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="lg-item"><span class="sw" style="background:var(--compute-bg);border:1px solid var(--compute-bd);"></span>Compute</div>
+    <div class="lg-item"><span class="sw" style="background:var(--ai-bg);border:1px solid var(--ai-bd);"></span>Bedrock / AI</div>
+    <div class="lg-item"><span class="sw" style="background:var(--storage-bg);border:1px solid var(--storage-bd);"></span>Storage</div>
+    <div class="lg-item"><span class="sw" style="background:var(--security-bg);border:1px solid var(--security-bd);"></span>Security</div>
+    <div class="lg-item"><span class="sw" style="background:var(--observ-bg);border:1px solid var(--observ-bd);"></span>Observability</div>
+    <div class="lg-item"><span class="sw" style="background:var(--cicd-bg);border:1px solid var(--cicd-bd);"></span>CI/CD</div>
+    <div class="lg-item"><span class="sw" style="border:2px dashed var(--network-bd);background:#fff;"></span>Network boundary (VPC / subnet)</div>
+  </div>
+
+</div>
+</body>
+</html>

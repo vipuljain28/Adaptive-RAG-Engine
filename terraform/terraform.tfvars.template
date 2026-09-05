@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars and fill in real values
+# terraform.tfvars is gitignored — never commit it
+
+aws_region     = "us-east-1"
+aws_account_id = "674959318309"           # Your 12-digit account ID
+project_name   = "knowledge-assistant"
+environment    = "dev"
+
+# EC2
+ec2_instance_type = "t3.small"
+ec2_key_pair_name = "knowledge-assistant-key" # Name of existing EC2 key pair for SSH access
+my_ip_cidr        = "0.0.0.0/0"              # Your IP for SSH: "1.2.3.4/32" or "0.0.0.0/0"
+
+# S3
+s3_bucket_suffix = "674959318309"         # Appended to bucket name for uniqueness

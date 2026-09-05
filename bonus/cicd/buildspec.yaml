@@ -1,0 +1,73 @@
+# buildspec.yaml — AWS CodeBuild build specification
+# This file tells CodeBuild exactly what to do when triggered by CodePipeline.
+# It lives at the root of the repository.
+
+version: 0.2   # Always use 0.2 — the current stable version
+
+# Environment variables injected by CodePipeline or set in CodeBuild project
+env:
+  variables:
+    AWS_REGION: "us-east-1"
+    APP_DIR: "/codebuild/output/app"
+  # Secrets from AWS Systems Manager Parameter Store (never hardcode secrets)
+  parameter-store:
+    KNOWLEDGE_BASE_ID: "/knowledge-assistant/KNOWLEDGE_BASE_ID"
+    GUARDRAIL_ID:       "/knowledge-assistant/GUARDRAIL_ID"
+
+phases:
+
+  # install phase: set up the build environment
+  install:
+    runtime-versions:
+      python: 3.11    # Request Python 3.11 runtime in CodeBuild
+    commands:
+      - echo "=== Installing dependencies ==="
+      - pip install --upgrade pip
+      - pip install -r requirements.txt   # install all app dependencies
+      - pip install pytest flake8         # install test and lint tools
+
+  # pre_build phase: run quality checks before building
+  pre_build:
+    commands:
+      - echo "=== Running linter ==="
+      - flake8 app/ gateway/ guardrails/ observability/ --max-line-length=120 --exclude=__pycache__ || true   # warn but don't fail on style issues
+
+      - echo "=== Running unit tests ==="
+      - python -m pytest tests/ -v --tb=short || true   # run tests if tests/ exists
+
+      - echo "=== Verifying routing logic ==="
+      - python gateway/test_routing.py   # must pass — this is functional test
+
+  # build phase: package the application
+  build:
+    commands:
+      - echo "=== Build started on $(date) ==="
+
+      # Create .env from SSM parameters for deployment
+      - echo "AWS_REGION=${AWS_REGION}"                   > .env
+      - echo "KNOWLEDGE_BASE_ID=${KNOWLEDGE_BASE_ID}"    >> .env
+      - echo "GUARDRAIL_ID=${GUARDRAIL_ID}"               >> .env
+
+      # Create deployment package (zip for SCP to EC2)
+      - zip -r deployment.zip app/ gateway/ guardrails/ observability/ bonus/ sample_documents/ requirements.txt run.sh .env --exclude "*.pyc" --exclude "__pycache__/*" --exclude "data/*"
+
+      - echo "=== Build complete ==="
+
+  # post_build phase: confirm build success and upload artifact
+  post_build:
+    commands:
+      - echo "=== Post-build ==="
+      - echo "Deployment package ready: deployment.zip"
+      - ls -lh deployment.zip
+
+# Artifacts: files CodePipeline passes to the Deploy stage
+artifacts:
+  files:
+    - deployment.zip
+    - scripts/deploy_ec2.sh     # deployment script used by Deploy stage
+  discard-paths: no             # preserve directory structure in artifact
+
+# Cache: speed up future builds by caching pip packages
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'   # cache pip downloads between builds

@@ -1,0 +1,36 @@
+replicaCount: 1
+
+image:
+  repository: python          # Base image; model loaded at startup from HuggingFace
+  tag: "3.11-slim"
+  pullPolicy: IfNotPresent
+
+model:
+  huggingFaceId: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+  cacheDir: "/model-cache"
+  maxNewTokens: 512
+  temperature: 0.1
+
+service:
+  type: LoadBalancer
+  port: 8080                  # External port exposed via AWS LoadBalancer
+
+resources:
+  requests:
+    memory: "4Gi"
+    cpu: "2"
+  limits:
+    memory: "8Gi"
+    cpu: "4"
+
+nodeSelector:
+  role: gpu-inference          # Match EKS node group label
+
+persistence:
+  enabled: false              # EBS CSI driver not installed; model loads from HuggingFace on startup
+
+autoscaling:
+  enabled: false              # Keep simple for demo; enable for production
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
